@@ -8,13 +8,42 @@
 ************************************************************************************/
 #pragma once
 #include <vector>
+#include "HexCtrlRes.h"
 
+//Search 1. String 2. Type 3. Start at 4. Direction
+using search_tup = std::tuple<std::wstring, DWORD, DWORD, int>;
 /********************************************
 * CHexCtrl class definition.				*
 ********************************************/
 class CHexCtrl : public CWnd
 {
 private:
+	/********************************************
+	* CHexDlgSearch class definition.			*
+	********************************************/
+	class CHexDlgSearch : public CDialogEx
+	{
+	public:
+		CHexDlgSearch(CWnd* pParent = nullptr) : CDialogEx(IDD_DIALOG_SEARCH, pParent) {}
+		virtual ~CHexDlgSearch() {}
+		BOOL Create(UINT nIDTemplate, CWnd* pParentWnd);
+		CWnd* GetParent();
+		search_tup& GetSearch();
+	protected:
+		virtual void DoDataExchange(CDataExchange* pDX);
+		virtual BOOL OnInitDialog();
+		afx_msg void OnBnClickedSearch();
+		afx_msg void OnKillFocus(CWnd* pNewWnd);
+		afx_msg void OnSetFocus(CWnd* pOldWnd);
+		afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
+		DECLARE_MESSAGE_MAP()
+	private:
+		CWnd* pParent { };
+		CEdit m_stEditSearch;
+		CComboBox m_stComboBoxSearch;
+		search_tup m_tupSearch;
+	};
+
 	/********************************************
 	* CHexView class definition.				*
 	********************************************/
@@ -46,12 +75,15 @@ private:
 		afx_msg void OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 		afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 		afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+		afx_msg LRESULT OnSearchRequest(WPARAM wParam, LPARAM lParam);
 		virtual BOOL PreTranslateMessage(MSG* pMsg);
 		void OnMenuRange(UINT nID);
 		int HitTest(LPPOINT); //Is any hex chunk withing given LPPOINT?
 		int CopyToClipboard(UINT nType);
-		void SetBytesDisplayedText(UINT uDisplayed, UINT uSelected);
+		void UpdateBottomBarText();
 		void Recalc();
+		void Search(search_tup&);
+		void SetSelectionTo(DWORD dwStart, DWORD dwEnd);
 		DECLARE_MESSAGE_MAP()
 	private:
 		const BYTE* m_pRawData { };
@@ -61,6 +93,7 @@ private:
 		SIZE m_sizeLetter { }; //Current font's letter size (width, height).
 		CFont m_fontHexView;
 		CFont m_fontRectBottom;
+		CHexDlgSearch m_dlgSearch;
 		CPen m_penLines { PS_SOLID, 1, RGB(200, 200, 200) };
 		COLORREF m_clrTextHexAndAscii { GetSysColor(COLOR_WINDOWTEXT) };
 		COLORREF m_clrTextOffset { RGB(0, 0, 180) };
@@ -81,19 +114,22 @@ private:
 		int m_iHeightBottomRect { m_iBottomLineIndent + 22 }; //Height of the not visible rect from window's bottom to m_iThirdHorizLine.
 		WCHAR m_strOffset[9] { };
 		const wchar_t* const m_strHexMap = L"0123456789ABCDEF";
-		SCROLLINFO m_stScrollInfo { sizeof(SCROLLINFO), SIF_ALL };
+		SCROLLINFO m_stScrollVert { sizeof(SCROLLINFO), SIF_ALL };
+		SCROLLINFO m_stScrollHorz { sizeof(SCROLLINFO), SIF_ALL };
 		SCROLLBARINFO m_stSBI { sizeof(SCROLLBARINFO) };
 		bool m_fSecondLaunch { false };
 		bool m_fLMousePressed { false };
 		bool m_fSelected { false };
-		DWORD m_dwSelectionStart { }, m_dwSelectionEnd { };
+		DWORD m_dwSelectionStart { }, m_dwSelectionEnd { }, m_dwSelectionClick { };
 		CRect m_rcSpaceBetweenHex { }; //Space between hex chunks, needed for selection draw.
 		CBrush m_stBrushBk { m_clrBk };
 		CBrush m_stBrushBkSelected { m_clrBkSelected };
 		int m_iHeightWorkArea { }; //Needed for mouse selection point.y calculation.
 		CMenu m_menuPopup;
 		std::wstring m_strBytesDisplayed;
+		DWORD m_dwBytesSelected { };
 	};
+	//////////////////////////////////////////////////////////////////
 public:
 	CHexCtrl() {}
 	virtual ~CHexCtrl() {}
@@ -122,7 +158,14 @@ private:
 constexpr auto IDC_MENU_POPUP_COPY_AS_HEX = 0x01;
 constexpr auto IDC_MENU_POPUP_COPY_AS_HEX_FORMATTED = 0x02;
 constexpr auto IDC_MENU_POPUP_COPY_AS_ASCII = 0x03;
+constexpr auto IDC_MENU_POPUP_SEARCH = 0x04;
 
 constexpr auto CLIPBOARD_COPY_AS_HEX = 0x01;
 constexpr auto CLIPBOARD_COPY_AS_HEX_FORMATTED = 0x02;
 constexpr auto CLIPBOARD_COPY_AS_ASCII = 0x03;
+
+constexpr auto ID_SEARCH_HEX = 0x00;
+constexpr auto ID_SEARCH_ASCII = 0x01;
+constexpr auto ID_SEARCH_UNICODE = 0x02;
+
+constexpr auto WM_HEXCTRL_SEARCH = WM_APP + 0x1;
